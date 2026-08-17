@@ -84,19 +84,19 @@ define network::mroute (
 ) {
   # Validate our arrays
 
-  include ::network
+  include network
   $real_reload_command = $reload_command ? {
-    undef => $::operatingsystem ? {
-        'CumulusLinux' => 'ifreload -a',
-        'RedHat'       => $::operatingsystemmajrelease ? {
-          '8'     => "/usr/bin/nmcli con reload ; /usr/bin/nmcli device reapply ${interface}",
-          default => "ifdown ${interface} --force ; ifup ${interface}",
-        },
-        default        => "ifdown ${interface} --force ; ifup ${interface}",
+    undef => $facts['os']['name'] ? {
+      'CumulusLinux' => 'ifreload -a',
+      'RedHat'       => $facts['os']['release']['major'] ? {
+        '8'     => "/usr/bin/nmcli con reload ; /usr/bin/nmcli device reapply ${interface}",
+        default => "ifdown ${interface} --force ; ifup ${interface}",
       },
+      default        => "ifdown ${interface} --force ; ifup ${interface}",
+    },
     default => $reload_command,
   }
-  if $restart_all_nic == false and $::kernel == 'Linux' {
+  if $restart_all_nic == false and $facts['kernel'] == 'Linux' {
     exec { "network_restart_route_${name}":
       command     => $real_reload_command,
       path        => '/sbin:/bin:/usr/sbin:/usr/bin',
@@ -113,22 +113,22 @@ define network::mroute (
   }
 
   $real_route_up_template = $route_up_template ? {
-    undef   => $::osfamily ? {
+    undef   => $facts['os']['family'] ? {
       'RedHat' => 'network/mroute-RedHat.erb',
       'Debian' => 'network/mroute_up-Debian.erb',
       'SuSE'   => 'network/mroute-SuSE.erb',
     },
-    default =>  $route_up_template,
+    default => $route_up_template,
   }
   $real_route_down_template = $route_down_template ? {
-    undef   => $::osfamily ? {
+    undef   => $facts['os']['family'] ? {
       'Debian' => 'network/mroute_down-Debian.erb',
       default  => undef,
     },
-    default =>  $route_down_template,
+    default => $route_down_template,
   }
 
-  if $::osfamily == 'SuSE' {
+  if $facts['os']['family'] == 'SuSE' {
     $networks = keys($routes)
     network::mroute::validate_gw { $networks:
       routes => $routes,
@@ -136,13 +136,13 @@ define network::mroute (
   }
 
   # TODO: add support for other distros
-  if $::osfamily != 'RedHat' and $table {
-    notify {"table parameter in mroute has no effect on ${::osfamily}!":
+  if $facts['os']['family'] != 'RedHat' and $table {
+    notify { "table parameter in mroute has no effect on ${facts['os']['family']}!":
       loglevel => warning,
     }
   }
 
-  case $::osfamily {
+  case $facts['os']['family'] {
     'RedHat': {
       file { "route-${name}":
         ensure  => $ensure,
@@ -185,6 +185,6 @@ define network::mroute (
         notify  => $real_config_file_notify,
       }
     }
-    default: { fail('Operating system not supported')  }
+    default: { fail('Operating system not supported') }
   }
 }

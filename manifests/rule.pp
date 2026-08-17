@@ -33,12 +33,12 @@ define network::rule (
 ) {
   # Validate our arrays
 
-  include ::network
+  include network
 
-  case $::osfamily {
+  case $facts['os']['family'] {
     'RedHat': {
       file { "rule-${interface}":
-        ensure  => present,
+        ensure  => file,
         owner   => root,
         group   => root,
         mode    => '0644',
@@ -47,7 +47,7 @@ define network::rule (
         notify  => $network::manage_config_file_notify,
       }
       file { "rule6-${interface}":
-        ensure  => present,
+        ensure  => file,
         owner   => root,
         group   => root,
         mode    => '0644',
@@ -58,7 +58,7 @@ define network::rule (
     }
     'Suse': {
       file { "ifrule-${interface}":
-        ensure  => present,
+        ensure  => file,
         owner   => root,
         group   => root,
         mode    => '0644',
@@ -87,6 +87,6 @@ define network::rule (
         notify  => $network::manage_config_file_notify,
       }
     }
-    default: { fail('Operating system not supported')  }
+    default: { fail('Operating system not supported') }
   }
 } # define network::rule

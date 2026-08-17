@@ -92,7 +92,7 @@ class network (
   $tables_hash               = undef,
   $confs_hash                = undef,
 
-  $hostname_file_template   = "network/hostname-${::osfamily}.erb",
+  $hostname_file_template   = "network/hostname-${facts['os']['family']}.erb",
 
   # Parameter used only on RedHat family
   $gateway                   = undef,
@@ -106,22 +106,22 @@ class network (
   $ipv6_radvd_pidfile        = undef,
 
   # Stdmod commons
-  $package_name              = $::network::params::package_name,
+  $package_name              = $network::params::package_name,
   $package_ensure            = 'present',
 
-  $service_restart_exec      = $::network::params::service_restart_exec,
+  $service_restart_exec      = $network::params::service_restart_exec,
 
-  $config_file_path          = $::network::params::config_file_path,
+  $config_file_path          = $network::params::config_file_path,
   $config_file_require       = undef,
   $config_file_notify        = 'class_default',
   $config_file_source        = undef,
   $config_file_template      = undef,
   $config_file_content       = undef,
-  $config_file_options_hash  = { } ,
+  $config_file_options_hash  = {},
 
   $config_file_per_interface = false,
 
-  $config_dir_path           = $::network::params::config_dir_path,
+  $config_dir_path           = $network::params::config_dir_path,
   $config_dir_source         = undef,
   $config_dir_purge          = false,
   $config_dir_recurse        = true,
@@ -130,10 +130,10 @@ class network (
   $my_class                  = undef,
 
   $monitor_class             = undef,
-  $monitor_options_hash      = { } ,
+  $monitor_options_hash      = {},
 
   $firewall_class            = undef,
-  $firewall_options_hash     = { } ,
+  $firewall_options_hash     = {},
 
   $scope_hash_filter         = '(uptime.*|timestamp)',
 
@@ -144,8 +144,7 @@ class network (
 
   $vlan                      = undef,
 
-  ) inherits ::network::params {
-
+) inherits network::params {
   # Hiera import
 
   if( $hiera_merge == true ) {
@@ -191,12 +190,11 @@ class network (
     $real_confs_hash      = $confs_hash
   }
 
-
   # Class variables validation and management
 
-  $config_file_owner          = $::network::params::config_file_owner
-  $config_file_group          = $::network::params::config_file_group
-  $config_file_mode           = $::network::params::config_file_mode
+  $config_file_owner          = $network::params::config_file_owner
+  $config_file_group          = $network::params::config_file_group
+  $config_file_mode           = $network::params::config_file_mode
 
   $manage_config_file_content = $config_file_content ? {
     undef => $config_file_template ? {
@@ -207,11 +205,11 @@ class network (
   }
 
   $manage_config_file_notify  = $config_file_notify ? {
-    'class_default' => "Exec[network_restart]",
+    'class_default' => 'Exec[network_restart]',
     'undef'         => undef,
     ''              => undef,
     undef           => undef,
-    true            => "Exec[network_restart]",
+    true            => 'Exec[network_restart]',
     false           => undef,
     default         => $config_file_notify,
   }
@@ -226,7 +224,7 @@ class network (
     default         => $config_file_require,
   }
 
-  $manage_hostname = pick($hostname, $::fqdn)
+  $manage_hostname = pick($hostname, $facts['networking']['fqdn'])
 
   if $package_ensure == 'absent' {
     $config_dir_ensure = absent
@@ -264,7 +262,6 @@ class network (
   if $dependency_class {
     include $dependency_class
   }
-
 
   # Resources managed
 
@@ -342,9 +339,9 @@ class network (
     create_resources('network::conf', $real_confs_hash)
   }
   # Configure default gateway (On RedHat). Also hostname is set.
-  if $::osfamily == 'RedHat'
-  and ($::network::gateway
-  or $::network::hostname) {
+  if $facts['os']['family'] == 'RedHat'
+  and ($network::gateway
+  or $network::hostname) {
     file { '/etc/sysconfig/network':
       ensure  => $config_file_ensure,
       mode    => $config_file_mode,
@@ -353,7 +350,7 @@ class network (
       content => template($network::hostname_file_template),
       notify  => $network::manage_config_file_notify,
     }
-    case $::lsbmajdistrelease {
+    case $facts['os']['distro']['release']['major'] {
       '7','8': {
         exec { 'sethostname':
           command => "/usr/bin/hostnamectl set-hostname ${manage_hostname}",
@@ -365,7 +362,7 @@ class network (
   }
 
   # Configure hostname (On Debian)
-  if $::osfamily == 'Debian'
+  if $facts['os']['family'] == 'Debian'
   and $hostname {
     file { '/etc/hostname':
       ensure  => $config_file_ensure,
@@ -377,7 +374,7 @@ class network (
     }
   }
 
-  if $::osfamily == 'Suse' {
+  if $facts['os']['family'] == 'Suse' {
     if $hostname {
       file { '/etc/HOSTNAME':
         ensure  => $config_file_ensure,
@@ -394,7 +391,7 @@ class network (
     }
   }
 
-  if $::osfamily == 'Solaris' {
+  if $facts['os']['family'] == 'Solaris' {
     if $hostname {
       file { '/etc/nodename':
         ensure  => $config_file_ensure,
@@ -410,7 +407,6 @@ class network (
       }
     }
   }
-
 
   # Extra classes
 
@@ -431,5 +427,4 @@ class network (
       scope_hash   => {},
     }
   }
-
 }
